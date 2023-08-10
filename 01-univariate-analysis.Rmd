@@ -1,0 +1,84 @@
+---
+title: "Univariate Analysis"
+output: word_document
+date: '2023-07-07'
+---
+
+## Read in Packages
+
+```{r setup, include=FALSE}
+
+source(here::here("Helper_Functions/data-readin.R"))
+library(ggplot2)
+library(CARBayes)
+library(tidyverse)
+library(viridis)
+library(cowplot)
+library(flextable)
+# Poverty Data (DP03_119PE)
+# Vacant housing units (DP04_0003PE)
+# Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", 
+                           acs_yr = 2021)
+
+
+```
+
+## R Markdown
+
+The data_readin function reads in the US Census data
+
+```{r georgiamap}
+
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE")
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r tables, echo=FALSE}
+
+ga_map_data %>% glimpse()
+
+```
+
+```{r}
+
+percentile_row <- function(dtfm, x, var_name = ""){
+  dtfm <-  dtfm %>%
+    st_drop_geometry() %>% 
+    summarize(`0%` = quantile({{x}}, probs = 0),
+      `25%` = quantile({{x}}, probs = .25),
+      `50%` = quantile({{x}}, probs = .5),
+      `75%` = quantile({{x}}, probs = .75),
+      `100%` = quantile({{x}}, probs = 1)) %>% 
+    mutate(`Variable` = var_name) %>% 
+    relocate(`Variable`)
+  
+  
+  return(dtfm)
+}
+
+percentile_table <- bind_rows(
+  percentile_row(ga_map_data, pct_poverty, "Poverty"),
+  percentile_row(ga_map_data, vacancy_rate, "Vacancy Rate"),
+  percentile_row(ga_map_data, unemployment_rate, "Unemployment Rate")
+  )
+
+# https://ardata-fr.github.io/flextable-book/
+
+
+ft <- flextable(percentile_table)
+ft <- add_header_row(ft,
+  colwidths = c(1,5),
+  values = c("Variable", "Percentiles"))
+ft <- theme_vanilla(ft)
+# ft <- add_footer_lines(ft, "Daily air quality measurements in New York, May to September 1973.")
+# ft <- color(ft, part = "footer", color = "#666666")
+ft <- set_caption(ft, caption = "Summary distribution of covariates")
+ft
+
+```
+
