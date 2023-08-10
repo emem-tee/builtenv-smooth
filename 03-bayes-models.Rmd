@@ -1,0 +1,195 @@
+---
+title: "Bayesian Models"
+output: word_document
+date: "2023-08-04"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source(here::here("Helper_Functions/data-readin.R"))
+source(here::here("Helper_Functions/analysis-functions.R"))
+library(ggplot2)
+library(CARBayes)
+library(tidyverse)
+library(viridis)
+library(cowplot)
+
+# Poverty Data (DP03_119PE)
+# Vacant housing units (DP04_0003PE)
+# Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2019)
+```
+
+## R Markdown
+
+```{r weight matrix}
+# Bayes---------------------------------------------------
+
+ga_map_nb <- spdep::poly2nb(ga_map_data, queen = F)
+
+W_mt <- spdep::nb2mat(ga_map_nb, style = "B")
+
+# Print the smoothed map
+ps <- ggplot(ga_map_data) + 
+  geom_sf(aes(fill = incidence)) +
+  labs(title = "Unsmoothed Smoothed\n Mortality Rates 19")
+
+# plot(ga_map_nb)
+
+print(ps)
+```
+
+
+```{r freq_model}
+
+form <- "mortality ~ pct_poverty_std + vacancy_rate_std + unemployment_rate_std + offset(log(population))"
+
+model <- glm(as.formula(form), family = "poisson",
+            data = ga_map_data)
+
+print(summary(model))
+
+```
+
+
+```{r model}
+
+form <- "mortality ~ pct_poverty_std + vacancy_rate_std + unemployment_rate_std + offset(log(population))"
+
+run_model <- function(form){
+  model.spatial <- S.CARleroux(formula = as.formula(form), family = "poisson",
+                               data = ga_map_data,
+                               W = W_mt, burnin = 20000,
+                               n.sample = 100000,
+                               thin = 10)
+  
+  return(model.spatial)
+  }
+
+iter_1 <- run_model(form)
+iter_2 <- run_model(form)
+
+print(iter_1)
+
+iter_1$summary.results
+
+
+```
+
+
+```{r}
+
+# Georgia Map Data fitted vs actual
+ga_map_data_res <- ga_map_data %>% 
+   mutate(mortality_hat = fitted(iter_1)) %>% 
+  relocate(mortality_hat, .after = mortality) %>% 
+  mutate(across(c(mortality, mortality_hat), ~ .x / population * 100000, .names = "inc_{.col}"))
+
+ga_map_data_res_long <- ga_map_data_res %>% 
+  st_drop_geometry() %>% 
+  select(NAME, rucc_code13, mortality, mortality_hat, inc_mortality, inc_mortality_hat, population, pct_poverty_std:unemployment_rate_std) %>% 
+  pivot_longer(cols = c(inc_mortality, inc_mortality_hat), names_to = "Response")
+
+ggplot(ga_map_data_res_long, aes(x = NAME, y = value, group = Response, colour = Response)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 65, hjust = 1))
+
+```
+
+
+
+```{r}
+
+plot_maps(ga_map_data_res, iter_1, mortality, mortality_pop)
+
+```
+
+```{r modeldiag}
+
+samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
+
+```
+
+
+## Model with RUCC Codes
+
+```{r urcccodes, echo=FALSE}
+
+# Same with rucc codes
+ggplot(ga_map_data) +
+  geom_sf(aes(fill = rucc_code13)) +
+  scale_fill_viridis(discrete = T, direction = -1) +
+  labs(title = "NCHS Urban Rural Classification")
+
+ga_map_data %>% 
+  st_drop_geometry() %>% 
+  count(rucc_code13) %>% mutate(prop = n / sum(n) * 100)
+
+ga_map_data %>% 
+  st_drop_geometry() %>% 
+  group_by(rucc_code13) %>% 
+  ggplot(aes(x = rucc_code13, y = Incidence)) +
+  geom_boxplot() +
+  labs(title = "Opioid Mortality Incidence by Urban Rural",
+       subtitle = "Large Central, Large Fringe, Medium Metro, Small Metro, Micrro, Non-Core",
+       x = "URCC Code",
+       y = "Incidence")
+  
+
+form <- "Incidence ~ rucc_code13 + pct_poverty + vacancy_rate + unemployment_rate+ offset(Population)"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "gaussian",
+                             data = ga_map_data,
+                             W = W_mt, burnin = 20000,
+                             n.sample = 100000,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "gaussian",
+                             data = ga_map_data,
+                             W = W_mt, burnin = 20000,
+                             n.sample = 100000,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,2:3])
+
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(model)
+
+model.spatial$summary.results
+
+ga_map_data <- mutate(ga_map_data,
+                      fitted_values = model.spatial$fitted.values)
+
+ggplot(ga_map_data, aes(x = Incidence, y = fitted_values)) +
+  geom_point() +
+  theme_bw()
+
+test_vals <- tibble(id = 1:length(model.spatial$fitted.values), 
+                    fitted_inc = model.spatial$fitted.values,
+                    true_inc = ga_map_data$Incidence) %>% 
+  pivot_longer(c(fitted_inc, true_inc))
+
+ggplot(test_vals, aes(x = id, y = value, group = name, colour = name)) +
+  geom_point() +
+  theme_bw()
+
+p1 <- ggplot(ga_map_data) +
+  geom_sf(aes(fill = Incidence)) +
+  scale_fill_viridis()
+p2 <- ggplot(ga_map_data) +
+  geom_sf(aes(fill = fitted_values)) +
+  scale_fill_viridis() 
+
+plot_grid(p1, p2, labels = c("Unsmoothed", "Smoothed"))
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
