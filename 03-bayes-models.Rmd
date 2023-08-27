@@ -15,6 +15,7 @@ library(CARBayes)
 library(tidyverse)
 library(viridis)
 library(cowplot)
+library(coda)
 
 # Poverty Data (DP03_119PE)
 # Vacant housing units (DP04_0003PE)
@@ -33,14 +34,17 @@ W_mt <- spdep::nb2mat(ga_map_nb, style = "B")
 
 # Print the smoothed map
 ps <- ggplot(ga_map_data) + 
-  geom_sf(aes(fill = incidence)) +
+  geom_sf(aes(fill = incidence * 1000)) +
   labs(title = "Unsmoothed Smoothed\n Mortality Rates 19")
 
 # plot(ga_map_nb)
 
 print(ps)
+
 ```
 
+
+## Frequentist Model
 
 ```{r freq_model}
 
@@ -53,6 +57,47 @@ print(summary(model))
 
 ```
 
+According to the frequentist model, both percent in poverty and vacancy rate were statistically associated with the rate of opioid overdoses.
+
+## Bayesian Model
+
+### Simpler Model
+
+```{r}
+
+form <- "mortality ~ vacancy_rate_std + offset(log(population))"
+
+run_model <- function(form){
+  model.spatial <- S.CARleroux(formula = as.formula(form), family = "poisson",
+                               data = ga_map_data,
+                               W = W_mt, burnin = 0,
+                               n.sample = 100000,
+                               thin = 5)
+  
+  return(model.spatial)
+  }
+
+iter_1 <- run_model(form)
+iter_2 <- run_model(form)
+
+print(iter_1)
+iter_1$summary.results
+
+```
+
+```{r}
+
+samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
+
+plot(samples_beta[,2:4])
+gelman.diag(samples_beta[,2:4])
+
+```
+
+
+### Full Model
+
+Note that the S.CARleroux function currently produces a warning: `Warning message: In mat2listw(W) : style is M (missing); style should be set to a valid value`. But you can ignore it, because it is produced by `mat2listw(W)` not being given a style argument in `getAnywhere(poisson.lerouxCAR)`. But I have checked and a square matrix goes into that function and it's 
 
 ```{r model}
 
@@ -63,7 +108,7 @@ run_model <- function(form){
                                data = ga_map_data,
                                W = W_mt, burnin = 20000,
                                n.sample = 100000,
-                               thin = 10)
+                               thin = 5)
   
   return(model.spatial)
   }
@@ -110,7 +155,11 @@ plot_maps(ga_map_data_res, iter_1, mortality, mortality_pop)
 
 samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
 
+plot(samples_beta[,2:4])
+gelman.diag(samples_beta[,2:4])
+
 ```
+
 
 
 ## Model with RUCC Codes
