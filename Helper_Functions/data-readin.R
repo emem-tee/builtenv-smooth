@@ -38,7 +38,8 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
     filter(`State Abr.` == "GA") %>% 
     mutate(county = substr(as.character(`FIPS code`),3,5),
            rucc_code13 = factor(`2013 code`, labels = c("lcm","lfm","mm","sm","mi","non"))) %>% 
-    select(county, rucc_code13, `2013 code`) 
+    select(county, rucc_code13, `2013 code`) %>% 
+    rename(rucc_code13_n = `2013 code`)
   
   # rucc %>% count(rucc_code13, `2013 code`)
     
