@@ -20,7 +20,11 @@ library(coda)
 # Poverty Data (DP03_119PE)
 # Vacant housing units (DP04_0003PE)
 # Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
-ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2019)
+# Percent!!RACE!!Total population!!One race!!White (DP05_0037PE)
+# Percent!!RACE!!Total population!!One race!!Black or African American (DP05_0038PE)
+# Percent!!HISPANIC OR LATINO AND RACE!!Total population(DP05_0070PE)
+# Percent!!HISPANIC OR LATINO AND RACE!!Total population!!Hispanic or Latino (of any race) (DP05_0071PE)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0037PE,DP05_0038PE,DP05_0070PE,DP05_0071PE", acs_yr = 2019)
 ```
 
 ## R Markdown
@@ -44,7 +48,63 @@ print(ps)
 ```
 
 
-## Frequentist Model
+## Simpler Model
+
+### Frequentist Model
+
+```{r freq_model}
+
+form <- "mortality ~ vacancy_rate_std + offset(log(population))"
+
+model <- glm(as.formula(form), family = "poisson",
+            data = ga_map_data)
+
+print(summary(model))
+
+```
+
+
+### Bayesian Model
+
+
+```{r bayesmodel1term}
+
+form <- "mortality ~ vacancy_rate_std + offset(log(population))"
+
+run_model <- function(form){
+  model.spatial <- S.CARleroux(formula = as.formula(form), family = "poisson",
+                               data = ga_map_data,
+                               W = W_mt, burnin = 0,
+                               n.sample = 1000000,
+                               thin = 5)
+  
+  return(model.spatial)
+  }
+
+iter_1 <- run_model(form)
+iter_2 <- run_model(form)
+
+print(iter_1)
+iter_1$summary.results
+
+# https://stats.stackexchange.com/questions/266749/mcmc-convergence
+
+```
+
+
+```{r bayeschainanalysis}
+
+samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
+
+plot(samples_beta[,2], density = F, trace = F)
+gelman.diag(samples_beta[,2])
+
+```
+
+## Full Model
+
+### Frequentist
+
 
 ```{r freq_model}
 
@@ -57,45 +117,10 @@ print(summary(model))
 
 ```
 
+
 According to the frequentist model, both percent in poverty and vacancy rate were statistically associated with the rate of opioid overdoses.
 
-## Bayesian Model
-
-### Simpler Model
-
-```{r}
-
-form <- "mortality ~ vacancy_rate_std + offset(log(population))"
-
-run_model <- function(form){
-  model.spatial <- S.CARleroux(formula = as.formula(form), family = "poisson",
-                               data = ga_map_data,
-                               W = W_mt, burnin = 0,
-                               n.sample = 100000,
-                               thin = 5)
-  
-  return(model.spatial)
-  }
-
-iter_1 <- run_model(form)
-iter_2 <- run_model(form)
-
-print(iter_1)
-iter_1$summary.results
-
-```
-
-```{r}
-
-samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
-
-plot(samples_beta[,2:4])
-gelman.diag(samples_beta[,2:4])
-
-```
-
-
-### Full Model
+### Bayesian
 
 Note that the S.CARleroux function currently produces a warning: `Warning message: In mat2listw(W) : style is M (missing); style should be set to a valid value`. But you can ignore it, because it is produced by `mat2listw(W)` not being given a style argument in `getAnywhere(poisson.lerouxCAR)`. But I have checked and a square matrix goes into that function and it's 
 
@@ -107,7 +132,7 @@ run_model <- function(form){
   model.spatial <- S.CARleroux(formula = as.formula(form), family = "poisson",
                                data = ga_map_data,
                                W = W_mt, burnin = 20000,
-                               n.sample = 100000,
+                               n.sample = 1e6,
                                thin = 5)
   
   return(model.spatial)
@@ -123,6 +148,17 @@ iter_1$summary.results
 
 ```
 
+
+```{r modeldiag}
+
+samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
+
+plot(samples_beta[,2:4], density = FALSE)
+gelman.diag(samples_beta[,2:4])
+
+```
+
+### Plot from Bayesian
 
 ```{r}
 
@@ -151,14 +187,7 @@ plot_maps(ga_map_data_res, iter_1, mortality, mortality_pop)
 
 ```
 
-```{r modeldiag}
 
-samples_beta <- mcmc.list(iter_1$samples$beta, iter_2$samples$beta)
-
-plot(samples_beta[,2:4])
-gelman.diag(samples_beta[,2:4])
-
-```
 
 
 
@@ -179,7 +208,7 @@ ga_map_data %>%
 ga_map_data %>% 
   st_drop_geometry() %>% 
   group_by(rucc_code13) %>% 
-  ggplot(aes(x = rucc_code13, y = Incidence)) +
+  ggplot(aes(x = rucc_code13, y = incidence)) +
   geom_boxplot() +
   labs(title = "Opioid Mortality Incidence by Urban Rural",
        subtitle = "Large Central, Large Fringe, Medium Metro, Small Metro, Micrro, Non-Core",
@@ -187,22 +216,27 @@ ga_map_data %>%
        y = "Incidence")
   
 
-form <- "Incidence ~ rucc_code13 + pct_poverty + vacancy_rate + unemployment_rate+ offset(Population)"
 
-model.spatial <- S.CARleroux(as.formula(form), family = "gaussian",
+```
+
+```{r bayesrucc}
+
+form <- "mortality ~ rucc_code13 + pct_poverty + vacancy_rate + unemployment_rate+ offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
                              data = ga_map_data,
-                             W = W_mt, burnin = 20000,
-                             n.sample = 100000,
+                             W = W_mt, burnin = 2000,
+                             n.sample = 1e6,
                              thin = 10)
 
-model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "gaussian",
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
                              data = ga_map_data,
-                             W = W_mt, burnin = 20000,
-                             n.sample = 100000,
+                             W = W_mt, burnin = 2000,
+                             n.sample = 1e6,
                              thin = 10)
 
 # Need to add comparison chain
-plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,2:3])
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
 
 
 model <- lm(as.formula(form), family = "gaussian",
@@ -214,16 +248,20 @@ print(model)
 
 model.spatial$summary.results
 
+```
+
+
+```{r bayesruccplot}
 ga_map_data <- mutate(ga_map_data,
                       fitted_values = model.spatial$fitted.values)
 
-ggplot(ga_map_data, aes(x = Incidence, y = fitted_values)) +
+ggplot(ga_map_data, aes(x = mortality, y = fitted_values)) +
   geom_point() +
   theme_bw()
 
 test_vals <- tibble(id = 1:length(model.spatial$fitted.values), 
                     fitted_inc = model.spatial$fitted.values,
-                    true_inc = ga_map_data$Incidence) %>% 
+                    true_inc = ga_map_data$mortality) %>% 
   pivot_longer(c(fitted_inc, true_inc))
 
 ggplot(test_vals, aes(x = id, y = value, group = name, colour = name)) +
@@ -231,10 +269,11 @@ ggplot(test_vals, aes(x = id, y = value, group = name, colour = name)) +
   theme_bw()
 
 p1 <- ggplot(ga_map_data) +
-  geom_sf(aes(fill = Incidence)) +
+  geom_sf(aes(fill = mortality / population)) +
   scale_fill_viridis()
+
 p2 <- ggplot(ga_map_data) +
-  geom_sf(aes(fill = fitted_values)) +
+  geom_sf(aes(fill = fitted_values / population)) +
   scale_fill_viridis() 
 
 plot_grid(p1, p2, labels = c("Unsmoothed", "Smoothed"))
