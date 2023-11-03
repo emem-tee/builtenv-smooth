@@ -59,7 +59,7 @@ Scatter_Matrix <- ggpairs(ga_map_data,columns = 12:15,
 
 ```{r scatter, echo=FALSE}
 
-ga_map_data%>% st_drop_geometry() %>% 
+ga_map_data %>% st_drop_geometry() %>% 
   pivot_longer(cols = c(pct_poverty, vacancy_rate, unemployment_rate, rucc_code13_n)) %>% 
   ggplot(aes(x = value, y = incidence)) +
   geom_point(alpha = 1 / 3) +
@@ -67,9 +67,22 @@ ga_map_data%>% st_drop_geometry() %>%
   theme_bw() +
   labs(x = "Percent", y = "Opioid Mortality Rate", 
        title = "Plot of Indicator Association with Incidence",
-       subtitle = "for GA Counties") +
+       subtitle = "for GA Counties (2017)") +
   theme(guide = NULL) +
   facet_grid(~name, scales = "free_x")
+
+ga_map_data %>% st_drop_geometry() %>% 
+  pivot_longer(cols = c(pct_poverty, vacancy_rate, unemployment_rate, rucc_code13_n)) %>% 
+  ggplot(aes(x = value, y = incidence20)) +
+  geom_point(alpha = 1 / 3) +
+  geom_smooth(colour = "black", span = .5) +
+  theme_bw() +
+  labs(x = "Percent", y = "Opioid Mortality Rate", 
+       title = "Plot of Indicator Association with Incidence",
+       subtitle = "for GA Counties (2020)") +
+  theme(guide = NULL) +
+  facet_grid(~name, scales = "free_x")
+
 
 ```
 

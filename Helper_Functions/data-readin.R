@@ -21,8 +21,7 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
       pct_poverty = as.numeric(DP03_0119PE),
       vacancy_rate = as.numeric(DP04_0003PE),
       unemployment_rate = as.numeric(DP03_0009PE)
-    ) %>% 
-    rename
+    ) 
   
   ##-Opioid----------------------------------------------------------------------
   
@@ -52,8 +51,10 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   
   ga_map_data <- ga_map %>% 
     left_join(full_data_codes) %>% 
-    mutate(incidence = Mortality / Population) %>% 
+    mutate(incidence = Mortality / Population,
+           incidence20 = Mortality_20 / Population) %>% 
     rename(mortality = Mortality,
+           mortality20 = Mortality_20,
            population = Population)
   
   ##-Standardize Variables------------------------------------------------------
