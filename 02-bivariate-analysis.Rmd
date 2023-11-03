@@ -15,7 +15,7 @@ library(cowplot)
 # Poverty Data (DP03_119PE)Percent!!PERCENTAGE OF FAMILIES AND PEOPLE WHOSE INCOME IN THE PAST 12 MONTHS IS BELOW THE POVERTY LEVEL!!All families
 # Vacant housing units (DP04_0003PE)
 # Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
-ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2019)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2019, mort_year = 2020)
 glimpse(ga_map_data)
 ```
 
@@ -59,7 +59,7 @@ Scatter_Matrix <- ggpairs(ga_map_data,columns = 12:15,
 
 ```{r scatter, echo=FALSE}
 
-ga_map_data %>% st_drop_geometry() %>% 
+ga_map_data%>% st_drop_geometry() %>% 
   pivot_longer(cols = c(pct_poverty, vacancy_rate, unemployment_rate, rucc_code13_n)) %>% 
   ggplot(aes(x = value, y = incidence)) +
   geom_point(alpha = 1 / 3) +
@@ -67,22 +67,9 @@ ga_map_data %>% st_drop_geometry() %>%
   theme_bw() +
   labs(x = "Percent", y = "Opioid Mortality Rate", 
        title = "Plot of Indicator Association with Incidence",
-       subtitle = "for GA Counties (2017)") +
+       subtitle = "for GA Counties") +
   theme(guide = NULL) +
   facet_grid(~name, scales = "free_x")
-
-ga_map_data %>% st_drop_geometry() %>% 
-  pivot_longer(cols = c(pct_poverty, vacancy_rate, unemployment_rate, rucc_code13_n)) %>% 
-  ggplot(aes(x = value, y = incidence20)) +
-  geom_point(alpha = 1 / 3) +
-  geom_smooth(colour = "black", span = .5) +
-  theme_bw() +
-  labs(x = "Percent", y = "Opioid Mortality Rate", 
-       title = "Plot of Indicator Association with Incidence",
-       subtitle = "for GA Counties (2020)") +
-  theme(guide = NULL) +
-  facet_grid(~name, scales = "free_x")
-
 
 ```
 

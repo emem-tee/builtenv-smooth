@@ -1,4 +1,4 @@
-data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2021){
+data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2021, mort_year = 2020){
   # data readin
   require(readxl)
   require(dplyr)
@@ -25,7 +25,12 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   
   ##-Opioid----------------------------------------------------------------------
   
+  if(mort_year == 2017){
   mort_data <- read_xlsx(here::here("Data/Opioid/PopData.xlsx"))
+  } else if(mort_year == 2020) {
+    mort_data <- read_xlsx(here::here("Data/Opioid/PopData20.xlsx"))
+  } 
+  else stop(paste0(mort_year, " is an invalid year. Choose 2020 or 2017 as a numeric variable."))
   
   full_data <- mort_data %>% 
     right_join(acs_georgia, by = c("County" = "NAME")) %>% 
@@ -37,7 +42,7 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
     filter(`State Abr.` == "GA") %>% 
     mutate(county = substr(as.character(`FIPS code`),3,5),
            rucc_code13 = factor(`2013 code`, labels = c("lcm","lfm","mm","sm","mi","non"))) %>% 
-    select(county, rucc_code13, `2013 code`) %>% 
+    dplyr::select(county, rucc_code13, `2013 code`) %>% 
     rename(rucc_code13_n = `2013 code`)
   
   # rucc %>% count(rucc_code13, `2013 code`)
@@ -51,10 +56,8 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   
   ga_map_data <- ga_map %>% 
     left_join(full_data_codes) %>% 
-    mutate(incidence = Mortality / Population,
-           incidence20 = Mortality_20 / Population) %>% 
+    mutate(incidence = Mortality / Population) %>% 
     rename(mortality = Mortality,
-           mortality20 = Mortality_20,
            population = Population)
   
   ##-Standardize Variables------------------------------------------------------

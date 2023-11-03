@@ -19,7 +19,7 @@ library(flextable)
 # Vacant housing units (DP04_0003PE)
 # Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
 ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", 
-                           acs_yr = 2021)
+                           acs_yr = 2021, mort_year = 2020)
 
 
 ```

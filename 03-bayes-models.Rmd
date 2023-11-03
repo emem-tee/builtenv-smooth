@@ -10,9 +10,9 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE)
 source(here::here("Helper_Functions/data-readin.R"))
 source(here::here("Helper_Functions/analysis-functions.R"))
+library(tidyverse)
 library(ggplot2)
 library(CARBayes)
-library(tidyverse)
 library(viridis)
 library(cowplot)
 library(coda)
@@ -24,7 +24,7 @@ library(coda)
 # Percent!!RACE!!Total population!!One race!!Black or African American (DP05_0038PE)
 # Percent!!HISPANIC OR LATINO AND RACE!!Total population(DP05_0070PE)
 # Percent!!HISPANIC OR LATINO AND RACE!!Total population!!Hispanic or Latino (of any race) (DP05_0071PE)
-ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0037PE,DP05_0038PE,DP05_0070PE,DP05_0071PE", acs_yr = 2019)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0037PE,DP05_0038PE,DP05_0070PE,DP05_0071PE", acs_yr = 2019, mort_year = 2020)
 ```
 
 ## R Markdown
@@ -44,6 +44,8 @@ ps <- ggplot(ga_map_data) +
 # plot(ga_map_nb)
 
 print(ps)
+
+# ga_map_data %>% arrange(desc(incidence)) %>% slice(1:20) %>% mutate(od_rank = row_number())
 
 ```
 
