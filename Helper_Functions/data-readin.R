@@ -4,6 +4,8 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   require(dplyr)
   require(sf)
   source(here::here("Data/ACS/acs-api.R"))
+  source(here::here("Helper_Functions/road-metrics.R"))
+  
   
   ##-Predictors------------------------------------------------------------------
 
@@ -60,12 +62,16 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
     rename(mortality = Mortality,
            population = Population)
   
+  ##-Add Road Metrics------------------------------------------------------------
+  
+  ga_map_data <- road_metrics(ga_map_data)
+  
   ##-Standardize Variables------------------------------------------------------
   
   standardize <- function(x) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
   
   ga_map_data <- ga_map_data %>% 
-    mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate), 
+    mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate, dist_to_usroad), 
                   ~  standardize(.x),
                   .names = "{.col}_std"))
   
