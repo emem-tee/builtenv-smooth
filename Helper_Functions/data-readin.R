@@ -71,7 +71,7 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   standardize <- function(x) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
   
   ga_map_data <- ga_map_data %>% 
-    mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate, dist_to_usroad), 
+    mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate, dist_to_usroad, dist_to_treatment), 
                   ~  standardize(.x),
                   .names = "{.col}_std"))
   
