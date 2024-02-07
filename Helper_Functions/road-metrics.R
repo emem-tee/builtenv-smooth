@@ -102,6 +102,36 @@ road_metrics <- function(dtfm) {
   dtfm <- dtfm %>% 
     left_join(dtfm_metrics, by = c("NAME" = "COUNTY"))
   
+  #=Add the treatment data====================================================
+  
+  # Read in the list of county seats to identify the cities
+  treatment <- read_xlsx(here::here("Data/Treatment/FindTreament_Facility_listing_2024_02_07_014748.xlsx"))
+  
+  treatment$lat_n <- as.numeric(treatment$latitude)
+  treatment$lon_n <- as.numeric(treatment$longitude)
+  
+  treatment_sf <- st_as_sf(treatment, coords = c("lon_n","lat_n"), crs=4326)
+  
+  treatment_projected <- st_transform(treatment_sf, st_crs(dtfm))
+  
+  # produces a list of indeces of the closest object
+  feat <- st_nearest_feature(county_seats_projected, treatment_projected)
+  
+  # Computes the distance between the county seat and the closest interstate
+  min_dist <- st_distance(county_seats_projected, 
+                          treatment_projected[feat,],
+                          by_element = TRUE)
+  
+  dtfm_metrics <- county_seats_projected %>%
+    mutate(dist_to_treatment = as.numeric(min_dist)) %>% 
+    st_drop_geometry() %>% 
+    dplyr::select(Name, Name_Seat, COUNTY, dist_to_treatment) 
+  
+  dtfm <- dtfm %>% 
+    left_join(dtfm_metrics, by = c("NAME" = "COUNTY"))
+  
+  # ggplot() + geom_sf(data = dtfm, aes(fill = dist_to_treatment))
+  # ggplot() + geom_sf(data = dtfm, aes(fill = dist_to_treatment))
   return(dtfm)
   
 }
