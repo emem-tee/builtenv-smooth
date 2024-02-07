@@ -97,9 +97,11 @@ road_metrics <- function(dtfm) {
   dtfm_metrics <- county_seats_projected %>%
     mutate(dist_to_usroad = as.numeric(min_dist)) %>% 
     st_drop_geometry() %>% 
-    dplyr::select(Name, Name_Seat, COUNTY, dist_to_usroad) %>%
-    right_join(dtfm, by = c("COUNTY" = "NAME"))
+    dplyr::select(Name, Name_Seat, COUNTY, dist_to_usroad) 
   
-  return(dtfm_metrics)
+  dtfm <- dtfm %>% 
+    left_join(dtfm_metrics, by = c("NAME" = "COUNTY"))
+  
+  return(dtfm)
   
 }

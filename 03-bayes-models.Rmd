@@ -6,6 +6,8 @@ editor_options:
   chunk_output_type: console
 ---
 
+## Data Read In
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 source(here::here("Helper_Functions/data-readin.R"))
@@ -17,17 +19,15 @@ library(viridis)
 library(cowplot)
 library(coda)
 
-# Poverty Data (DP03_119PE)
-# Vacant housing units (DP04_0003PE)
-# Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
-# Percent!!RACE!!Total population!!One race!!White (DP05_0037PE)
-# Percent!!RACE!!Total population!!One race!!Black or African American (DP05_0038PE)
-# Percent!!HISPANIC OR LATINO AND RACE!!Total population(DP05_0070PE)
-# Percent!!HISPANIC OR LATINO AND RACE!!Total population!!Hispanic or Latino (of any race) (DP05_0071PE)
-ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0037PE,DP05_0038PE,DP05_0070PE,DP05_0071PE", acs_yr = 2019, mort_year = 2020)
 ```
 
-## R Markdown
+```{r data_readin, include=FALSE}
+
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0037PE,DP05_0038PE,DP05_0070PE,DP05_0071PE", acs_yr = 2019, mort_year = 2020)
+
+```
+
+## Map Components
 
 ```{r weight matrix}
 # Bayes---------------------------------------------------
@@ -54,7 +54,7 @@ print(ps)
 
 ### Frequentist Model
 
-```{r freq_model}
+```{r vacancy_model}
 
 form <- "mortality ~ vacancy_rate_std + offset(log(population))"
 
@@ -172,7 +172,7 @@ ga_map_data_res <- ga_map_data %>%
 
 ga_map_data_res_long <- ga_map_data_res %>% 
   st_drop_geometry() %>% 
-  select(NAME, rucc_code13, mortality, mortality_hat, inc_mortality, inc_mortality_hat, population, pct_poverty_std:unemployment_rate_std) %>% 
+  dplyr::select(NAME, rucc_code13, mortality, mortality_hat, inc_mortality, inc_mortality_hat, population, pct_poverty_std:unemployment_rate_std) %>% 
   pivot_longer(cols = c(inc_mortality, inc_mortality_hat), names_to = "Response")
 
 ggplot(ga_map_data_res_long, aes(x = NAME, y = value, group = Response, colour = Response)) +
@@ -282,4 +282,109 @@ plot_grid(p1, p2, labels = c("Unsmoothed", "Smoothed"))
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Map Components
+
+```{r disttoroad}
+
+ga_map_data_short <- ga_map_data %>% 
+  filter(!is.na(dist_to_usroad))
+
+# The following two counties were removed from the adjacency matrix.
+# ga_map_data %>% 
+#   st_drop_geometry() %>% 
+#   mutate(county_id = row_number()) %>% 
+#   dplyr::select(county_id, COUNTY, dist_to_usroad) %>% 
+#   filter(is.na(dist_to_usroad))
+# county_id   COUNTY dist_to_usroad
+# 1       158 Columbia             NA
+# 2       159   Echols             NA 
+
+```
+
+
+```{r weightmatrixdist}
+# Bayes---------------------------------------------------
+
+ga_map_nb_short <- spdep::poly2nb(ga_map_data_short, queen = F)
+
+W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
+
+# Print the smoothed map
+# ps <- ggplot(ga_map_data) + 
+#   geom_sf(aes(fill = incidence * 1000)) +
+#   labs(title = "Unsmoothed\n Mortality Rates 19")
+
+# plot(ga_map_nb)
+
+print(ps)
+
+# ga_map_data %>% arrange(desc(incidence)) %>% slice(1:20) %>% mutate(od_rank = row_number())
+
+```
+
+
+
+## Model with RUCC Codes and Distance
+
+```{r distplots, echo=FALSE}
+
+# Same with rucc codes
+ggplot(ga_map_data_short) +
+  geom_sf(aes(fill = rucc_code13)) +
+  scale_fill_viridis(discrete = T, direction = -1) +
+  labs(title = "NCHS Urban Rural Classification")
+
+ggplot(ga_map_data_short) +
+  geom_sf(aes(fill = dist_to_usroad)) +
+  scale_fill_viridis(direction = -1) +
+  labs(title = "US Survey Ft Distance to US Road")
+
+ga_map_data %>% 
+  st_drop_geometry() %>% 
+  count(rucc_code13) %>% mutate(prop = n / sum(n) * 100)
+
+ga_map_data %>% 
+  st_drop_geometry() %>% 
+  ggplot(aes(x = dist_to_usroad_std, y = incidence)) +
+  geom_point() +
+  labs(title = "Opioid Mortality Incidence by Urban Rural",
+       subtitle = "Large Central, Large Fringe, Medium Metro, Small Metro, Micrro, Non-Core",
+       x = "URCC Code",
+       y = "Incidence")
+  
+
+
+```
+
+```{r bayesdist}
+
+form <- "mortality ~ dist_to_usroad_std + pct_poverty_std + vacancy_rate_std + unemployment_rate_std + offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(summary(model))
+
+model.spatial$summary.results
+
+```
+
+
