@@ -43,7 +43,8 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   rucc <- read_xlsx(here::here("Data/NCHS/rucc_codes/NCHSURCodes2013.xlsx")) %>%
     filter(`State Abr.` == "GA") %>% 
     mutate(county = substr(as.character(`FIPS code`),3,5),
-           rucc_code13 = factor(`2013 code`, labels = c("lcm","lfm","mm","sm","mi","non"))) %>% 
+           rucc_code13 = factor(`2013 code`, labels = c("lcm","lfm","mm","sm","mi","non"))
+           ) %>% 
     dplyr::select(county, rucc_code13, `2013 code`) %>% 
     rename(rucc_code13_n = `2013 code`)
   
@@ -73,7 +74,16 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   ga_map_data <- ga_map_data %>% 
     mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate, dist_to_usroad, dist_to_treatment), 
                   ~  standardize(.x),
-                  .names = "{.col}_std"))
+                  .names = "{.col}_std")) %>% 
+    mutate(rucc_code13_4 = forcats::fct_collapse(rucc_code13,
+                                                  lcm_lfm = c("lcm", "lfm"),
+                                                  mm_sm = c("mm", "sm"),
+                                                  mi_non = c("mi", "non")),
+            rucc_code13_5 = forcats::fct_collapse(rucc_code13,
+                                                  lcm_lfm = c("lcm", "lfm"),
+                                                  mm_sm = "mm",
+                                                  sm = "sm",
+                                                  mi_non = c("mi", "non")))
   
   return(ga_map_data)
 

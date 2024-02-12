@@ -1,8 +1,10 @@
 ---
 title: "Bayesian Models"
-output: word_document
+output:
+  html_document:
+    df_print: paged
 date: "2023-08-04"
-editor_options: 
+editor_options:
   chunk_output_type: console
 ---
 
@@ -238,7 +240,7 @@ model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
                              thin = 10)
 
 # Need to add comparison chain
-plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+# plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
 
 
 model <- lm(as.formula(form), family = "gaussian",
@@ -253,7 +255,7 @@ model.spatial$summary.results
 ```
 
 
-```{r bayesruccplot}
+```{r map}
 ga_map_data <- mutate(ga_map_data,
                       fitted_values = model.spatial$fitted.values)
 
@@ -261,9 +263,11 @@ ggplot(ga_map_data, aes(x = mortality, y = fitted_values)) +
   geom_point() +
   theme_bw()
 
-test_vals <- tibble(id = 1:length(model.spatial$fitted.values), 
+test_vals_wide <- tibble(id = 1:length(model.spatial$fitted.values), 
                     fitted_inc = model.spatial$fitted.values,
-                    true_inc = ga_map_data$mortality) %>% 
+                    true_inc = ga_map_data$mortality)
+
+test_vals <- test_vals_wide %>% 
   pivot_longer(c(fitted_inc, true_inc))
 
 ggplot(test_vals, aes(x = id, y = value, group = name, colour = name)) +
@@ -281,6 +285,14 @@ p2 <- ggplot(ga_map_data) +
 plot_grid(p1, p2, labels = c("Unsmoothed", "Smoothed"))
 
 ```
+
+```{r variancereduction}
+
+var.test(test_vals$true_inc, test_vals_wide$fitted_inc, alternative = "two.sided")
+
+```
+
+# Distance Metrics Added
 
 ## Map Components
 
@@ -352,8 +364,6 @@ ga_map_data %>%
        x = "URCC Code",
        y = "Incidence")
   
-
-
 ```
 
 ```{r bayesdist}
@@ -373,7 +383,7 @@ model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
                              thin = 10)
 
 # Need to add comparison chain
-plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+# plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
 
 
 model <- lm(as.formula(form), family = "gaussian",
@@ -387,4 +397,217 @@ model.spatial$summary.results
 
 ```
 
+
+
+# Based on Bivariate Analysis
+
+```{r bayesdisttreat}
+
+form <- "mortality ~  dist_to_treatment_std * rucc_code13_5 +  dist_to_usroad_std + offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+# plot(mcmc.list(model.spatial.chain2$samples$beta)[,-1])
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(summary(model))
+
+model.spatial$summary.results
+model.spatial.chain2$summary.results
+
+```
+
+
+```{r bayesvacancyrate}
+
+form <- "mortality ~  vacancy_rate_std + offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+# plot(mcmc.list(model.spatial.chain2$samples$beta)[,-1])
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(summary(model))
+
+model.spatial$summary.results
+model.spatial.chain2$summary.results
+
+```
+
+
+
+```{r bayesruccsolo}
+
+form <- "mortality ~  rucc_code13_5 + offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+# plot(mcmc.list(model.spatial.chain2$samples$beta)[,-1])
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(summary(model))
+
+model.spatial$summary.results
+model.spatial.chain2$summary.results
+
+```
+
+```{r bayesvacancyrateint}
+
+form <- "mortality ~  vacancy_rate_std * rucc_code13_5 +  dist_to_usroad_std + offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+# plot(mcmc.list(model.spatial.chain2$samples$beta)[,-1])
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(summary(model))
+
+model.spatial$summary.results
+model.spatial.chain2$summary.results
+
+```
+
+
+```{r bayesvacancyrate8}
+
+form <- "mortality ~  vacancy_rate_std * rucc_code13_5 +  dist_to_usroad_std + offset(log(population))"
+
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             rho = .8,
+                             n.sample = 1e6,
+                             thin = 10)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000,
+                             n.sample = 1e6,
+                             rho = .8,
+                             thin = 10)
+
+# Need to add comparison chain
+plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+# plot(mcmc.list(model.spatial.chain2$samples$beta)[,-1])
+
+model <- lm(as.formula(form), family = "gaussian",
+            data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+print(summary(model))
+
+model.spatial$summary.results
+model.spatial.chain2$summary.results
+
+```
+
+```{r map short}
+
+ga_map_data_short <- mutate(ga_map_data_short,
+                      fitted_values = model.spatial$fitted.values)
+
+test_vals_wide <- tibble(id = 1:length(model.spatial$fitted.values), 
+                    fitted_inc = model.spatial$fitted.values,
+                    true_inc = ga_map_data_short$mortality)
+
+test_vals <- test_vals_wide %>% 
+  pivot_longer(c(fitted_inc, true_inc))
+
+ggplot(test_vals, aes(x = id, y = value, group = name, colour = name)) +
+  geom_point() +
+  theme_bw()
+
+p1 <- ggplot(ga_map_data_short) +
+  geom_sf(aes(fill = mortality / population)) +
+  scale_fill_viridis()
+
+p2 <- ggplot(ga_map_data_short) +
+  geom_sf(aes(fill = fitted_values / population)) +
+  scale_fill_viridis() 
+
+plot_grid(p1, p2, labels = c("Unsmoothed", "Smoothed"))
+
+```
+
+
+```{r variancereduction short}
+
+var(test_vals_wide$true_inc)
+
+var(test_vals_wide$fitted_inc)
+
+var.test(test_vals_wide$true_inc, test_vals_wide$fitted_inc, alternative = "two.sided")
+
+```
 
