@@ -22,7 +22,8 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
     mutate(
       pct_poverty = as.numeric(DP03_0119PE),
       vacancy_rate = as.numeric(DP04_0003PE),
-      unemployment_rate = as.numeric(DP03_0009PE)
+      unemployment_rate = as.numeric(DP03_0009PE),
+      pct_black = as.numeric(DP05_0065PE)
     ) 
   
   ##-Opioid----------------------------------------------------------------------
@@ -71,8 +72,11 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
   
   standardize <- function(x) (x - mean(x, na.rm = T)) / sd(x, na.rm = T)
   
+  unemp_pct99 <- quantile(ga_map_data$unemployment_rate, probs = .99,na.rm = T)
+  
   ga_map_data <- ga_map_data %>% 
-    mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate, dist_to_usroad, dist_to_treatment), 
+    mutate(unemployment_rate_out =  if_else(unemployment_rate > unemp_pct99, unemp_pct99, unemployment_rate, NA_real_)) %>% 
+    mutate(across(c(pct_poverty, vacancy_rate, unemployment_rate,unemployment_rate_out, dist_to_usroad, dist_to_treatment, pct_black), 
                   ~  standardize(.x),
                   .names = "{.col}_std")) %>% 
     mutate(rucc_code13_4 = forcats::fct_collapse(rucc_code13,
