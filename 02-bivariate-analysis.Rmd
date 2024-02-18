@@ -11,15 +11,44 @@ library(ggplot2)
 library(tidyverse)
 library(viridis)
 library(cowplot)
+library(tmap)
 
 # Poverty Data (DP03_119PE)Percent!!PERCENTAGE OF FAMILIES AND PEOPLE WHOSE INCOME IN THE PAST 12 MONTHS IS BELOW THE POVERTY LEVEL!!All families
 # Vacant housing units (DP04_0003PE)
 # Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
-ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr = 2019, mort_year = 2020)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0065PE", acs_yr = 2020, mort_year = 2020)
 glimpse(ga_map_data)
 ```
 
 ```{r}
+
+ps <- ggplot(ga_map_data) + 
+  geom_sf(aes(fill = incidence * 1000)) +
+  labs(title = "Unsmoothed Smoothed\n Mortality Rates 19")
+
+tm_shape(ga_map_data) +
+    tm_polygons(c("incidence", "pct_poverty_std", "vacancy_rate_std", "unemployment_rate_std", 
+                  "dist_to_usroad_std", "dist_to_treatment_std", "pct_black_std",
+                  "rucc_code13_5")#, 
+                # fill.scale = list(tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_discrete())
+                  # list(tm_scale_categorical(),
+                  #                 tm_scale_ordinal(),
+                  #                 tm_scale_intervals(),
+                  #                 tm_scale_continuous(),
+                  #                 tm_scale_continuous_log(),
+                  #                 tm_scale_discrete())
+                #,
+                # fill.legend = tm_legend(title = "", position = tm_pos_in("left", "top"))
+                ) +
+    tm_layout(panel.labels = c("Raw Incidence", "Poverty", "Vacancy Rate", "Unemployment Rate", "Dist to USRoad", "Dist to Treatment", "Percent Black",
+                               "Rural/Urban"), 
+              inner.margins = c(0.05, 0.4, 0.1, 0.05),
+              legend.text.size = 0.5)
 
  #%>% 
   # rename_with(~ paste0(.x, "_std", recycle0 = T), c("pct_poverty", "vacancy_rate", "unemployment_rate"))
@@ -74,7 +103,8 @@ ggplot(ga_map_data) + geom_sf(aes(fill = rucc_code13)) + geom_sf_text(aes(label 
 ```{r}
 
 ga_map_data %>% st_drop_geometry() %>%
-  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_std, rucc_code13_n, dist_to_usroad_std, dist_to_treatment_std)) %>%
+  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_std, rucc_code13_n, dist_to_usroad_std, dist_to_treatment_std,
+                        pct_black_std)) %>%
   ggplot(aes(x = value, y = incidence)) +
   geom_point(alpha = 1 / 3) +
   geom_smooth(colour = "black", span = 1) +
@@ -95,10 +125,28 @@ ga_map_data %>% st_drop_geometry() %>%
        title = "Plot of Indicator Association with Incidence",
        subtitle = "for GA Counties") +
   theme(guide = NULL) +
-  facet_grid(~name, scales = "free_x")
+  facet_wrap("name",ncol = 2, scales = "free_x")
 
 
 ```
+```{r}
+ga_map_data %>% 
+  mutate(unemployment_rate_std_out = if_else(unemployment_rate_std > pctile99, pctile99, unemployment_rate_std, NA_real_)) %>% 
+  st_drop_geometry() %>%
+  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_std, unemployment_rate_std_out,
+                        rucc_code13_n, dist_to_usroad_std, dist_to_treatment_std)) %>%
+  ggplot(aes(x = value, y = incidence)) +
+  geom_point(alpha = 1 / 3) +
+  geom_smooth(colour = "black", method  = "lm") +
+  theme_bw() +
+  labs(x = "Percent", y = "Opioid Mortality Rate",
+       title = "Plot of Indicator Association with Incidence",
+       subtitle = "for GA Counties") +
+  theme(guide = NULL) +
+  facet_wrap("name",ncol = 2, scales = "free_x")
+
+```
+
 
 
 ## Scatterplots of Predictor Variables
@@ -169,7 +217,7 @@ ga_map_data %>% st_drop_geometry() %>%
 
 
 ga_map_data %>% st_drop_geometry() %>% 
-  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_std, dist_to_usroad_std, dist_to_treatment_std)) %>% 
+  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_std, dist_to_usroad_std, dist_to_treatment_std, pct_black_std)) %>% 
   ggplot(aes(x = value, y = incidence)) +
   geom_point(alpha = 1 / 3) +
   geom_smooth(colour = "black", method = "lm") +
