@@ -1,0 +1,303 @@
+---
+title: "Paper Figures and Tables"
+author: "MM Thomas"
+date: "2024-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source(here::here("Helper_Functions/data-readin.R"))
+library(ggplot2)
+library(tidyverse)
+library(CARBayes)
+library(coda)
+library(viridis)
+library(cowplot)
+library(tmap)
+
+# Poverty Data (DP03_119PE)Percent!!PERCENTAGE OF FAMILIES AND PEOPLE WHOSE INCOME IN THE PAST 12 MONTHS IS BELOW THE POVERTY LEVEL!!All families
+# Vacant housing units (DP04_0003PE)
+# Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
+ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0065PE", acs_yr = 2020, mort_year = 2020)
+
+
+
+ga_map_data %>% summarise(across(matches("unemploy"), list(mean = mean, max = max))) 
+
+glimpse(ga_map_data)
+```
+
+
+## Maps
+
+
+```{r}
+
+ps <- ggplot(ga_map_data) + 
+  geom_sf(aes(fill = incidence * 1000)) +
+  labs(title = "Unsmoothed Smoothed\n Mortality Rates 19")
+
+tm_shape(ga_map_data) +
+    tm_polygons(c("incidence", "pct_poverty_std", "vacancy_rate_std", "unemployment_rate_out_std", 
+                  "dist_to_usroad_std", "dist_to_treatment_std", "pct_black_std",
+                  "rucc_code13_5"),
+                
+                #, 
+                # fill.scale = list(tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_discrete())
+                  # list(tm_scale_categorical(),
+                  #                 tm_scale_ordinal(),
+                  #                 tm_scale_intervals(),
+                  #                 tm_scale_continuous(),
+                  #                 tm_scale_continuous_log(),
+                  #                 tm_scale_discrete())
+                #,
+                # fill.legend = tm_legend(title = "", position = tm_pos_in("left", "top"))
+                ) +
+    tm_layout(panel.labels = c("Raw Incidence", "Poverty", "Vacancy Rate", "Unemployment Rate", "Dist to USRoad", "Dist to Treatment", "Percent Black",
+                               "Rural/Urban"), 
+              inner.margins = c(0.05, 0.4, 0.1, 0.05),
+              legend.text.size = 0.5)
+
+ #%>% 
+  # rename_with(~ paste0(.x, "_std", recycle0 = T), c("pct_poverty", "vacancy_rate", "unemployment_rate"))
+
+```
+
+## Correlations
+
+```{r maps}
+print("Pearson Correlation==================")
+Hmisc::rcorr(as.matrix(st_drop_geometry(ga_map_data[,c("dist_to_usroad_std", "dist_to_treatment_std", "pct_poverty_std", "vacancy_rate_std", "unemployment_rate_out_std", "incidence")])))[c(1,3)]
+
+print("Spearman Correlation=================")
+Hmisc::rcorr(as.matrix(st_drop_geometry(ga_map_data[,c("dist_to_usroad_std", "dist_to_treatment_std","pct_poverty_std", "vacancy_rate_std", "unemployment_rate_out_std", "incidence")])),type = 'spearman')[c(1,3)]
+
+```
+
+## Bivariate Scatterplots
+```{r}
+
+ga_map_data %>% st_drop_geometry() %>%
+  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_out_std,
+                        dist_to_usroad_std, dist_to_treatment_std,
+                        pct_black_std)) %>%
+  ggplot(aes(x = value, y = incidence)) +
+  geom_point(alpha = 1 / 3) +
+  geom_smooth(colour = "black", method  = "lm") +
+  theme_bw() +
+  labs(x = "Percent", y = "Opioid Mortality Rate",
+       title = "Plot of Indicator Association with Incidence",
+       subtitle = "for GA Counties") +
+  theme(guide = NULL) +
+  facet_wrap("name",ncol = 2)
+
+```
+
+
+## Scatterplot Matrix
+
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+ga_map_data %>% st_drop_geometry() %>% 
+  pivot_longer(cols = c(pct_poverty_std, vacancy_rate_std, unemployment_rate_std, dist_to_usroad_std, dist_to_treatment_std, pct_black_std)) %>% 
+  ggplot(aes(x = value, y = incidence)) +
+  geom_point(alpha = 1 / 3) +
+  geom_smooth(colour = "black", method = "lm") +
+  theme_bw() +
+  labs(x = "Percent", y = "Opioid Mortality Rate", 
+       title = "Plot of Indicator Association with Incidence",
+       subtitle = "for GA Counties") +
+  theme(guide = NULL) +
+  facet_grid(rucc_code13_5~name, space = "free")
+
+```
+
+## Regressions
+
+### Distance Metrics Added
+
+### Map Components
+
+```{r disttoroad}
+
+ga_map_data_short <- ga_map_data %>% 
+  filter(!is.na(dist_to_usroad))
+
+# The following two counties were removed from the adjacency matrix.
+# ga_map_data %>% 
+#   st_drop_geometry() %>% 
+#   mutate(county_id = row_number()) %>% 
+#   dplyr::select(county_id, COUNTY, dist_to_usroad) %>% 
+#   filter(is.na(dist_to_usroad))
+# county_id   COUNTY dist_to_usroad
+# 1       158 Columbia             NA
+# 2       159   Echols             NA 
+
+```
+
+
+```{r weightmatrixdist}
+# Bayes---------------------------------------------------
+
+ga_map_nb_short <- spdep::poly2nb(ga_map_data_short, queen = F)
+
+W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
+
+# Print the smoothed map
+# ps <- ggplot(ga_map_data) + 
+#   geom_sf(aes(fill = incidence * 1000)) +
+#   labs(title = "Unsmoothed\n Mortality Rates 19")
+
+# plot(ga_map_nb)
+
+print(ps)
+
+# ga_map_data %>% arrange(desc(incidence)) %>% slice(1:20) %>% mutate(od_rank = row_number())
+
+```
+
+```{r}
+
+post_prob <- function(var_index, model, val_ = 0, loop = F){
+  if(loop == T){
+    for(i in 1:ncol(model$samples$beta)){
+      print(paste0(row.names(model$summary.results)[i], " Post Prob:"))
+      prob_ <- sum(model$samples$beta[,i] > val_) / length(model$samples$beta[,i])
+      print(prob_)
+      }
+  } else{
+        print(paste0(row.names(model$summary.results)[var_index], " Post Prob:"))
+      prob_ <- sum(model$samples$beta[,var_index] > val_) / length(model$samples$beta[,var_index])
+      print(prob_)
+    }
+}
+
+```
+
+
+
+# Full Model
+
+```{r bayesdist}
+
+form <- "mortality ~ vacancy_rate_std + dist_to_treatment_std + pct_poverty_std + unemployment_rate_out_std + pct_black_std + offset(log(population))"
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
+                             thin = 10, rho = .8)
+
+model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6, 
+                             thin = 10, rho = .8)
+
+# model.spatial.chain2_small <- S.CARleroux(as.formula(form), family = "poisson",
+#                              data = ga_map_data_short,
+#                              W = W_mt_short, burnin = 2000, n.sample = 1e5, 
+#                              thin = 10, rho = .8)
+
+# Need to add comparison chain
+# plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
+
+# model <- glm(as.formula(form), family = "poisson",
+#             data = ga_map_data)
+
+print(summary(model.spatial))
+print(model.spatial)
+# print(model.spatial.chain2_small)
+
+post_prob(2, model.spatial, 0, loop = T)
+exp(model.spatial$summary.results[,1:3] )
+
+```
+
+# Poverty in Core
+
+```{r bayesdist_povruc}
+
+form <- "mortality ~ pct_poverty_std * relevel(rucc_code13_5, ref = 'mi_non') + offset(log(population))"
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
+                             thin = 10, rho = .8)
+
+print(summary(model.spatial))
+print(model.spatial)
+post_prob(2, model.spatial, 0, loop = T)
+exp(model.spatial$summary.results[,1:3])
+
+```
+
+# Vacancy in SM
+
+```{r bayesdist_vacruc}
+
+form <- "mortality ~ vacancy_rate_std * rucc_code13_5 + offset(log(population))"
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
+                             thin = 10, rho = .8)
+
+print(summary(model.spatial))
+print(model.spatial)
+post_prob(2, model.spatial, 0, loop = T)
+exp(model.spatial$summary.results[,1:3])
+
+```
+
+# Treatment in SM
+
+```{r bayesdist_distruc}
+
+form <- "mortality ~ dist_to_treatment_std * rucc_code13_5 + offset(log(population))"
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
+                             thin = 10, rho = .8)
+
+print(summary(model.spatial))
+print(model.spatial)
+post_prob(2, model.spatial, 0, loop = T)
+exp(model.spatial$summary.results[,1:3])
+
+```
+
+
+```{r bayesdist_distruc}
+
+form <- "mortality ~ unemployment_rate_out_std + dist_to_treatment_std + vacancy_rate * rucc_code13_5 + offset(log(population))"
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
+                             thin = 10, rho = .8)
+
+print(summary(model.spatial))
+print(model.spatial)
+post_prob(2, model.spatial, 0, loop = T)
+# exp(model.spatial$summary.results[,1:3])
+
+```
+
+```{r}
+
+form <- "mortality ~ dist_to_treatment_std + vacancy_rate + offset(log(population))"
+model.spatial <- S.CARleroux(as.formula(form), family = "poisson",
+                             data = ga_map_data_short,
+                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
+                             thin = 10, rho = .8)
+
+print(summary(model.spatial))
+print(model.spatial)
+post_prob(2, model.spatial, 0, loop = T)
+# exp(model.spatial$summary.results[,1:3])
+
+```
+
