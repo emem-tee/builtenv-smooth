@@ -85,7 +85,7 @@ data_readin <- function(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE", acs_yr
                                                   mi_non = c("mi", "non")),
             rucc_code13_5 = forcats::fct_collapse(rucc_code13,
                                                   lcm_lfm = c("lcm", "lfm"),
-                                                  mm_sm = "mm",
+                                                  mm = "mm",
                                                   sm = "sm",
                                                   mi_non = c("mi", "non")))
   

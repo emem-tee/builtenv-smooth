@@ -64,7 +64,7 @@ W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
 
 # plot(ga_map_nb)
 
-print(ps)
+# print(ps)
 
 # ga_map_data %>% arrange(desc(incidence)) %>% slice(1:20) %>% mutate(od_rank = row_number())
 
@@ -174,7 +174,7 @@ ga_map_data_short %>% st_drop_geometry() %>%
   geom_point(alpha = 1 / 3) +
   geom_smooth(colour = "black", method = "lm") +
   theme_bw() +
-  labs(x = "Percent", y = "Opioid Mortality Rate", 
+  labs(x = "Standardized Value", y = "Opioid Mortality Rate per 1000", 
        title = "Plot of Indicator Association with Incidence",
        subtitle = "for GA Counties") +
   theme(guide = NULL, text = element_text(family = "serif")) +
