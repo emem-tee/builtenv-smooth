@@ -27,6 +27,49 @@ ga_map_data %>% summarise(across(matches("unemploy"), list(mean = mean, max = ma
 
 glimpse(ga_map_data)
 ```
+
+
+### Distance Metrics Added
+
+### Map Components
+
+```{r disttoroad}
+
+ga_map_data_short <- ga_map_data %>% 
+  filter(!is.na(dist_to_usroad))
+
+# The following two counties were removed from the adjacency matrix.
+# ga_map_data %>% 
+#   st_drop_geometry() %>% 
+#   mutate(county_id = row_number()) %>% 
+#   dplyr::select(county_id, COUNTY, dist_to_usroad) %>% 
+#   filter(is.na(dist_to_usroad))
+# county_id   COUNTY dist_to_usroad
+# 1       158 Columbia             NA
+# 2       159   Echols             NA 
+
+```
+
+```{r weightmatrixdist}
+# Bayes---------------------------------------------------
+
+ga_map_nb_short <- spdep::poly2nb(ga_map_data_short, queen = F)
+
+W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
+
+# Print the smoothed map
+# ps <- ggplot(ga_map_data) + 
+#   geom_sf(aes(fill = incidence * 1000)) +
+#   labs(title = "Unsmoothed\n Mortality Rates 19")
+
+# plot(ga_map_nb)
+
+print(ps)
+
+# ga_map_data %>% arrange(desc(incidence)) %>% slice(1:20) %>% mutate(od_rank = row_number())
+
+```
+
 ## Maps
 
 ### RUCC Codes/Covariates
@@ -141,48 +184,6 @@ ga_map_data_short %>% st_drop_geometry() %>%
 
 ## Regressions
 
-### Distance Metrics Added
-
-### Map Components
-
-```{r disttoroad}
-
-ga_map_data_short <- ga_map_data %>% 
-  filter(!is.na(dist_to_usroad))
-
-# The following two counties were removed from the adjacency matrix.
-# ga_map_data %>% 
-#   st_drop_geometry() %>% 
-#   mutate(county_id = row_number()) %>% 
-#   dplyr::select(county_id, COUNTY, dist_to_usroad) %>% 
-#   filter(is.na(dist_to_usroad))
-# county_id   COUNTY dist_to_usroad
-# 1       158 Columbia             NA
-# 2       159   Echols             NA 
-
-```
-
-
-```{r weightmatrixdist}
-# Bayes---------------------------------------------------
-
-ga_map_nb_short <- spdep::poly2nb(ga_map_data_short, queen = F)
-
-W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
-
-# Print the smoothed map
-# ps <- ggplot(ga_map_data) + 
-#   geom_sf(aes(fill = incidence * 1000)) +
-#   labs(title = "Unsmoothed\n Mortality Rates 19")
-
-# plot(ga_map_nb)
-
-print(ps)
-
-# ga_map_data %>% arrange(desc(incidence)) %>% slice(1:20) %>% mutate(od_rank = row_number())
-
-```
-
 ```{r}
 
 post_prob <- function(var_index, model, val_ = 0, loop = F){
@@ -195,6 +196,20 @@ post_prob <- function(var_index, model, val_ = 0, loop = F){
   } else{
         print(paste0(row.names(model$summary.results)[var_index], " Post Prob:"))
       prob_ <- sum(model$samples$beta[,var_index] > val_) / length(model$samples$beta[,var_index])
+      print(prob_)
+    }
+}
+
+post_prob_lt <- function(var_index, model, val_ = 0, loop = F){
+  if(loop == T){
+    for(i in 1:ncol(model$samples$beta)){
+      print(paste0(row.names(model$summary.results)[i], " Post Prob:"))
+      prob_ <- sum(model$samples$beta[,i] < val_) / length(model$samples$beta[,i])
+      print(prob_)
+      }
+  } else{
+        print(paste0(row.names(model$summary.results)[var_index], " Post Prob:"))
+      prob_ <- sum(model$samples$beta[,var_index] < val_) / length(model$samples$beta[,var_index])
       print(prob_)
     }
 }
@@ -234,6 +249,7 @@ print(model.spatial.full)
 # print(model.spatial.chain2_small)
 
 post_prob(2, model.spatial.full, 0, loop = T)
+post_prob_lt(2, model.spatial.full, 0, loop = T)
 exp(model.spatial.full$summary.results[,1:3] )
 
 ```
@@ -416,12 +432,21 @@ ga_map_data_short_map %>%
   st_drop_geometry() %>% 
   rename(`Incidence Raw` = incidence, `Incidence Adj` = incidence_adj, `Incidence Bayes` = incidence_smooth) %>% 
   pivot_longer(c(`Incidence Raw`, `Incidence Adj`, `Incidence Bayes`), names_to = "Method", values_to = "Incidence Estimate") %>% 
-  mutate(Method = factor(Method, levels = c("Incidence Adj", "Incidence Raw","Incidence Bayes"))) %>% 
+  mutate(Method = factor(Method, levels = c("Incidence Adj", "Incidence Raw","Incidence Bayes")),
+         `Incidence Estimate` = `Incidence Estimate` * 1000) %>% 
   ggplot(aes(x = Method, y = `Incidence Estimate`, group = NAME)) +
   geom_line(alpha = 1 / 5) +
   geom_point(alpha = 1/ 10) +
   theme_bw() +
   theme(text = element_text(family="serif")) 
+
+var.test(ga_map_data_short_map$incidence,ga_map_data_short_map$incidence_adj)
+
+var.test(ga_map_data_short_map$incidence,ga_map_data_short_map$incidence_smooth)
+
+sd(ga_map_data_short_map$incidence)
+sd(ga_map_data_short_map$incidence_smooth)
+sd(ga_map_data_short_map$incidence_adj)
 
 ```
 
