@@ -76,9 +76,11 @@ W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
 
 ```{r}
 
-tm_shape(ga_map_data) +
+ga_map_data %>% 
+  rename(pct_minority_std = pct_black_std) %>% 
+  tm_shape() +
     tm_polygons(c("incidence", "pct_poverty_std", "vacancy_rate_std", "unemployment_rate_out_std", 
-                  "dist_to_usroad_std", "dist_to_treatment_std", "pct_black_std",
+                  "dist_to_usroad_std", "dist_to_treatment_std", "pct_minority_std",
                   "rucc_code13_5"),
                 
                 #, 
@@ -97,7 +99,7 @@ tm_shape(ga_map_data) +
                 #,
                 # fill.legend = tm_legend(title = "", position = tm_pos_in("left", "top"))
                 ) +
-    tm_layout(panel.labels = c("Raw Incidence", "Poverty", "Vacancy Rate", "Unemployment Rate", "Dist to USRoad", "Dist to Treatment", "Percent Black",
+    tm_layout(panel.labels = c("Raw Incidence", "Poverty", "Vacancy Rate", "Unemployment Rate", "Dist to USRoad", "Dist to Treatment", "Percent Minority",
                                "Rural/Urban"), 
               inner.margins = c(0.05, 0.4, 0.1, 0.05),
               legend.text.size = 1.0,
