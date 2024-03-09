@@ -3,6 +3,8 @@ title: "Paper Figures and Tables"
 author: "MM Thomas"
 date: "2024-02-18"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -20,7 +22,6 @@ library(tmap)
 # Vacant housing units (DP04_0003PE)
 # Percent!!EMPLOYMENT STATUS!!Civilian labor force!!Unemployment Rate (DP03_0009PE)
 ga_map_data <- data_readin(acs_vars = "DP03_0119PE,DP04_0003PE,DP03_0009PE,DP05_0065PE", acs_yr = 2020, mort_year = 2020)
-
 
 
 ga_map_data %>% summarise(across(matches("unemploy"), list(mean = mean, max = max))) 
@@ -70,6 +71,20 @@ W_mt_short <- spdep::nb2mat(ga_map_nb_short, style = "B")
 
 ```
 
+
+```{r}
+ga_map_data_short %>% 
+  ggplot(aes(x = rucc_code13_5, y = incidence)) +
+  geom_boxplot() +
+  theme_bw()
+
+ga_map_data_short %>% 
+  ggplot(aes(x = rucc_code13_5)) +
+  geom_bar() +
+  theme_bw()
+```
+
+
 ## Maps
 
 ### RUCC Codes/Covariates
@@ -109,6 +124,50 @@ ga_map_data %>%
   # rename_with(~ paste0(.x, "_std", recycle0 = T), c("pct_poverty", "vacancy_rate", "unemployment_rate"))
 
 ```
+
+### Specific Maps for Power Point
+
+```{r}
+
+
+ga_map_data %>% 
+  rename(pct_minority_std = pct_black_std) %>% 
+  tm_shape() +
+    tm_polygons(c("vacancy_rate_std", "unemployment_rate_out_std", 
+                  "dist_to_usroad_std", "dist_to_treatment_std",
+                  "pct_minority_std","rucc_code13_5"),
+                
+                #, 
+                # fill.scale = list(tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_continuous(),
+                #                   tm_scale_discrete())
+                  # list(tm_scale_categorical(),
+                  #                 tm_scale_ordinal(),
+                  #                 tm_scale_intervals(),
+                  #                 tm_scale_continuous(),
+                  #                 tm_scale_continuous_log(),
+                  #                 tm_scale_discrete())
+                #,
+                # fill.legend = tm_legend(title = "", position = tm_pos_in("left", "top"))
+                ) +
+    tm_layout(panel.labels = c("Vacancy Rate", "Unemployment Rate", "Dist to USRoad", "Dist to Treatment", "Percent Minority",
+                               "Rural/Urban"), 
+              panel.label.size = 1.4,
+              legend.title.color = "white",
+              inner.margins = c(0.05, 0.4, 0.1, 0.05),
+              legend.text.size = 1.4,
+              fontfamily = "serif")
+
+ga_map_data %>% 
+  st_drop_geometry() %>% 
+  count(rucc_code13_5) %>% 
+  mutate(pct = format(round(n / sum(n) ,4), nsmall = 4))
+
+```
+
 
 ## Correlations
 
