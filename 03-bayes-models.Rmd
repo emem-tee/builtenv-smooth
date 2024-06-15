@@ -370,7 +370,7 @@ ga_map_data %>%
 
 ## Dist to Road
 
-```{r bayesdist}
+```{r bayesdist-1}
 
 form <- "mortality ~ dist_to_usroad_std + pct_poverty_std + vacancy_rate_std + unemployment_rate_std + offset(log(population))"
 
@@ -403,7 +403,7 @@ model.spatial$summary.results
 
 ## Dist to Treatment (FINAL MODEL)
 
-```{r bayesdist}
+```{r bayesdist-2}
 
 form <- "mortality ~ vacancy_rate_std + dist_to_treatment_std + pct_poverty_std + unemployment_rate_std + offset(log(population))"
 
