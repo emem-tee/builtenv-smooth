@@ -2,14 +2,11 @@
 .Rhistory
 .RData
 .Ruserdata
-
 Data/
-
 debug-notes.md
-
 Quick_Analysis/
 !Quick_Analysis/map-metrics-treatment*
-
 *.docx
 *.png
 *.html
+01-univariate-analysis.docx
