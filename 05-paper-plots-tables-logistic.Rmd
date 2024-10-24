@@ -171,7 +171,7 @@ ga_map_data %>%
 
 ## Correlations
 
-```{r maps}
+```{r correlation-plot}
 vars_ <- c(sort(c("dist_to_usroad_std", "dist_to_treatment_std", "pct_poverty_std","pct_black_std", "vacancy_rate_std", "unemployment_rate_out_std")), "incidence")
 
 print("Pearson Correlation==================")
@@ -281,7 +281,7 @@ post_prob_lt <- function(var_index, model, val_ = 0, loop = F){
 
 # Full Model
 
-```{r bayesdist}
+```{r full-model}
 
 form <- "mortality ~ vacancy_rate_std + dist_to_treatment_std + pct_poverty_std + unemployment_rate_out_std + pct_black_std + offset(log(population))"
 model.spatial.full <- S.CARleroux(as.formula(form), family = "binomial",
@@ -300,7 +300,7 @@ exp(model.spatial.full$summary.results[,1:3] )
 
 ```
 
-```{r plot_for_full}
+```{r plot-for-full-model}
 
 model_res_for_plot <- as.data.frame(exp(model.spatial.full$summary.results[,1:3]))
 
@@ -345,7 +345,7 @@ model_res_for_plot %>%
 
 # Poverty Model
 
-```{r bayesdist}
+```{r poverty-model}
 
 form <- "mortality ~ pct_poverty_std * relevel(rucc_code13_5, ref = 'mi_non')  + offset(log(population))"
 model.spatial.full <- S.CARleroux(as.formula(form), family = "binomial",
@@ -364,7 +364,7 @@ exp(model.spatial.full$summary.results[,1:3] )
 
 ```
 
-```{r plot_for_full}
+```{r plot-for-poverty-model}
 
 model_res_for_plot <- as.data.frame(exp(model.spatial.full$summary.results[,1:3]))
 
@@ -413,7 +413,7 @@ model_res_for_plot %>%
 form <- "mortality ~ vacancy_rate_std * rucc_code13_5 + offset(log(population))"
 # Vacancy Model
 
-```{r bayesdist}
+```{r vacancy-model}
 
 form <- "mortality ~ vacancy_rate_std * rucc_code13_5 + offset(log(population))"
 model.spatial.full <- S.CARleroux(as.formula(form), family = "binomial",
@@ -432,7 +432,7 @@ exp(model.spatial.full$summary.results[,1:3] )
 
 ```
 
-```{r plot_for_full}
+```{r plot-for-vacancy-model}
 
 model_res_for_plot <- as.data.frame(exp(model.spatial.full$summary.results[,1:3]))
 
@@ -477,19 +477,11 @@ model_res_for_plot %>%
 ```
 
 
-
-
-
-```{r}
-print("test")
-```
-
-
-
-
 #--------------------------------------------------------------------------
 
-# Poverty in Core
+# Poisson Models
+
+## Poverty in Core
 
 ```{r bayesdist_povruc}
 
@@ -506,7 +498,7 @@ exp(model.spatial.povrucc$summary.results[,1:3])
 
 ```
 
-# Vacancy in SM
+## Vacancy in SM
 
 ```{r bayesdist_vacruc}
 
@@ -523,7 +515,7 @@ exp(model.spatial.vacruc$summary.results[,1:3])
 
 ```
 
-# Treatment in SM
+## Treatment in SM
 
 ```{r bayesdist_treatruc}
 
@@ -571,7 +563,7 @@ post_prob(2, model.spatial.pars.distvac, 0, loop = T)
 
 ```
 
-# With Self
+## With Self
 
 ```{r bayesfullself}
 
@@ -579,10 +571,10 @@ W_mt_short_self <- W_mt_short
 diag(W_mt_short_self) <- 1
 
 form <- "mortality ~ vacancy_rate_std + dist_to_treatment_std + pct_poverty_std + unemployment_rate_out_std + pct_black_std + offset(log(population))"
-model.spatial.full.self <- S.CARleroux(as.formula(form), family = "poisson",
+model.spatial.full.self <- S.CARleroux(as.formula(form), family = "binomial",
                              data = ga_map_data_short,
                              W = W_mt_short_self, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = 1)
+                             thin = 10, rho = 1, trials = ga_map_data_short$population)
 
 # model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
 #                              data = ga_map_data_short,
@@ -612,6 +604,7 @@ exp(model.spatial.full$summary.results[,1:3] )
 
 ## Regression Map
 
+### Adjacency Based
 
 ```{r}
 
