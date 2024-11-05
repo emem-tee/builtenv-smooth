@@ -474,6 +474,20 @@ model_res_for_plot %>%
        title = "Odds Ratio Plot for Results of Analysis (Vacancy)")
   
 
+interact.effect.vacancy <- model.spatial.full$samples$beta[,2] + # Place Vector of Main Effect Here
+       model.spatial.full$samples$beta[,7] # Place Vector of Interaction Here
+
+```
+
+## Vacancy Effect with Interaction Exp
+
+```{r}
+mean(interact.effect.vacancy)
+quantile(interact.effect.vacancy, c(.025, .975))
+exp(mean(interact.effect.vacancy))
+exp(quantile(interact.effect.vacancy, c(.025, .975)))
+
+
 ```
 
 

@@ -430,7 +430,23 @@ post_prob(2, model.spatial.full, 0, loop = T)
 post_prob_lt(2, model.spatial.full, 0, loop = T)
 exp(model.spatial.full$summary.results[,1:3] )
 
+interact.effect.vacancy <- model.spatial.full$samples$beta[,2] + # Place Vector of Main Effect Here
+       model.spatial.full$samples$beta[,7] # Place Vector of Interaction Here
+
 ```
+
+## Vacancy Effect with Interaction Exp
+
+```{r}
+mean(interact.effect.vacancy)
+quantile(interact.effect.vacancy, c(.025, .975))
+exp(mean(interact.effect.vacancy))
+exp(quantile(interact.effect.vacancy, c(.025, .975)))
+
+
+```
+
+
 
 ```{r plot-for-vacancy-model}
 
@@ -475,206 +491,3 @@ model_res_for_plot %>%
   
 
 ```
-
-
-#--------------------------------------------------------------------------
-
-# Poisson Models
-
-## Poverty in Core
-
-```{r bayesdist_povruc}
-
-form <- "mortality ~ pct_poverty_std * relevel(rucc_code13_5, ref = 'mi_non') + offset(log(population))"
-model.spatial.povrucc <- S.CARleroux(as.formula(form), family = "poisson",
-                             data = ga_map_data_short,
-                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = .8)
-
-print(summary(model.spatial.povrucc))
-print(model.spatial.povrucc)
-post_prob(2, model.spatial.povrucc, 0, loop = T)
-exp(model.spatial.povrucc$summary.results[,1:3])
-
-```
-
-## Vacancy in SM
-
-```{r bayesdist_vacruc}
-
-form <- "mortality ~ vacancy_rate_std * rucc_code13_5 + offset(log(population))"
-model.spatial.vacruc <- S.CARleroux(as.formula(form), family = "poisson",
-                             data = ga_map_data_short,
-                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = .8)
-
-print(summary(model.spatial.vacruc))
-print(model.spatial.vacruc)
-post_prob(2, model.spatial.vacruc, 0, loop = T)
-exp(model.spatial.vacruc$summary.results[,1:3])
-
-```
-
-## Treatment in SM
-
-```{r bayesdist_treatruc}
-
-form <- "mortality ~ dist_to_treatment_std * rucc_code13_5 + offset(log(population))"
-model.spatial.treatruc <- S.CARleroux(as.formula(form), family = "poisson",
-                             data = ga_map_data_short,
-                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = .8)
-
-print(summary(model.spatial.treatruc))
-print(model.spatial.treatruc)
-post_prob(2, model.spatial.treatruc, 0, loop = T)
-exp(model.spatial.treatruc$summary.results[,1:3])
-
-```
-
-
-```{r bayesdist_heurmodel}
-
-form <- "mortality ~ unemployment_rate_out_std + dist_to_treatment_std + vacancy_rate * rucc_code13_5 + offset(log(population))"
-model.spatial.full.vacrucc <- S.CARleroux(as.formula(form), family = "poisson",
-                             data = ga_map_data_short,
-                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = .8)
-
-print(summary(model.spatial.full.vacrucc))
-print(model.spatial.full.vacrucc)
-post_prob(2, model.spatial.full.vacrucc, 0, loop = T)
-# exp(model.spatial$summary.results[,1:3])
-
-```
-
-```{r}
-
-form <- "mortality ~ dist_to_treatment_std + vacancy_rate + offset(log(population))"
-model.spatial.pars.distvac <- S.CARleroux(as.formula(form), family = "poisson",
-                             data = ga_map_data_short,
-                             W = W_mt_short, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = .8)
-
-print(summary(model.spatial.pars.distvac))
-print(model.spatial.pars.distvac)
-post_prob(2, model.spatial.pars.distvac, 0, loop = T)
-# exp(model.spatial$summary.results[,1:3])
-
-```
-
-## With Self
-
-```{r bayesfullself}
-
-W_mt_short_self <- W_mt_short
-diag(W_mt_short_self) <- 1
-
-form <- "mortality ~ vacancy_rate_std + dist_to_treatment_std + pct_poverty_std + unemployment_rate_out_std + pct_black_std + offset(log(population))"
-model.spatial.full.self <- S.CARleroux(as.formula(form), family = "binomial",
-                             data = ga_map_data_short,
-                             W = W_mt_short_self, burnin = 2000, n.sample = 1e6,
-                             thin = 10, rho = 1, trials = ga_map_data_short$population)
-
-# model.spatial.chain2 <- S.CARleroux(as.formula(form), family = "poisson",
-#                              data = ga_map_data_short,
-#                              W = W_mt_short, burnin = 2000, n.sample = 1e6, 
-#                              thin = 10, rho = .8)
-
-# model.spatial.chain2_small <- S.CARleroux(as.formula(form), family = "poisson",
-#                              data = ga_map_data_short,
-#                              W = W_mt_short, burnin = 2000, n.sample = 1e5, 
-#                              thin = 10, rho = .8)
-
-# Need to add comparison chain
-# plot(mcmc.list(model.spatial$samples$beta, model.spatial.chain2$samples$beta)[,-1])
-
-# model <- glm(as.formula(form), family = "poisson",
-#             data = ga_map_data)
-
-print(summary(model.spatial.full))
-print(model.spatial.full.self)
-# print(model.spatial.chain2_small)
-
-post_prob(2, model.spatial.full, 0, loop = T)
-exp(model.spatial.full$summary.results[,1:3] )
-
-```
-
-
-## Regression Map
-
-### Adjacency Based
-
-```{r}
-
-x <- ga_map_data_short$incidence
-W <- W_mt_short_self
-
-# t(matrix(rep(1,157))) %*% W
-
-adjacency_smoothed <- as.vector(t(matrix(x)) %*% W / rowSums(W))
-
-ga_map_data_short <- ga_map_data_short %>%
-  mutate(incidence_adj = adjacency_smoothed) 
-
-```
-
-
-```{r}
-
-ga_map_data_short_map <- ga_map_data_short %>% 
-  mutate(incidence_na = ifelse(incidence == 0, NA_real_, incidence),
-         mortality_smooth = model.spatial.full$fitted.values,
-         incidence_smooth = mortality_smooth / population)
-
-plot(ga_map_data_short_map$incidence, ga_map_data_short_map$incidence_smooth)
-
-
-bbox_new <- st_bbox(ga_map_data_short_map) # current bounding box
-
-xrange <- bbox_new$xmax - bbox_new$xmin # range of x values
-yrange <- bbox_new$ymax - bbox_new$ymin # range of y values
-
-# bbox_new[1] <- bbox_new[1] - (0.25 * xrange) # xmin - left
- bbox_new[3] <- bbox_new[3] + (0.15 * xrange) # xmax - right
-# bbox_new[2] <- bbox_new[2] - (0.25 * yrange) # ymin - bottom
-bbox_new[4] <- bbox_new[4] + (0.1 * yrange) # ymax - top
-
-ga_map_data_short_map %>% 
-  mutate(across(c(incidence_na, incidence_adj, incidence_smooth), .fns = ~.x * 1000)) %>% 
-  rename(`Incidence Raw` = incidence_na, `Incidence Adj` = incidence_adj, `Incidence Bayes` = incidence_smooth) %>% 
-  tm_shape(bbox = bbox_new) +
-  tm_polygons(col = c("Incidence Raw", "Incidence Adj", "Incidence Bayes"), 
-              midpoint = 0,
-              style  = "cont",
-              pal = viridis(10)) +
-  tm_shape(ga_map_data) +
-  tm_borders() +
-  tm_layout(legend.position = c("right", "top"),
-            legend.text.size = .7,
-            fontfamily = "serif")
-
-
-ga_map_data_short_map %>% 
-  st_drop_geometry() %>% 
-  rename(`Incidence Raw` = incidence, `Incidence Adj` = incidence_adj, `Incidence Bayes` = incidence_smooth) %>% 
-  pivot_longer(c(`Incidence Raw`, `Incidence Adj`, `Incidence Bayes`), names_to = "Method", values_to = "Incidence Estimate") %>% 
-  mutate(Method = factor(Method, levels = c("Incidence Adj", "Incidence Raw","Incidence Bayes")),
-         `Incidence Estimate` = `Incidence Estimate` * 1000) %>% 
-  ggplot(aes(x = Method, y = `Incidence Estimate`, group = NAME)) +
-  geom_line(alpha = 1 / 5) +
-  geom_point(alpha = 1/ 10) +
-  theme_bw() +
-  theme(text = element_text(family="serif")) 
-
-var.test(ga_map_data_short_map$incidence,ga_map_data_short_map$incidence_adj)
-
-var.test(ga_map_data_short_map$incidence,ga_map_data_short_map$incidence_smooth)
-
-sd(ga_map_data_short_map$incidence)
-sd(ga_map_data_short_map$incidence_smooth)
-sd(ga_map_data_short_map$incidence_adj)
-
-```
-
