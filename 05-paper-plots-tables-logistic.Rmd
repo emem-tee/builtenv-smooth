@@ -275,6 +275,43 @@ post_prob_lt <- function(var_index, model, val_ = 0, loop = F){
     }
 }
 
+exp_obs_plot <- function(model, title_ = ""){
+
+  ga_map_data_short_resid <- ga_map_data_short %>% 
+    mutate(
+          ID = row_number(),
+          y_minus = residuals(model.spatial.full),
+          Rank = rank(-y_minus, ties.method = "min"),
+          `Mort. Pred` = predict.glm(model.spatial.full, type="response"),
+          `Mort. Obs` = ga_map_data_short$mortality)
+  
+  p1 <- ga_map_data_short_resid %>% st_drop_geometry() %>% 
+    dplyr::select(ID,`Mort. Obs`,`Mort. Pred`, y_minus) %>% 
+    pivot_longer(c(`Mort. Obs`,`Mort. Pred`), names_to = "Statistic", 
+                 values_to = "Value") %>% 
+    ggplot(aes(x = ID, y = Value, color = Statistic)) +
+    geom_point(alpha = 1 / 1.7) +
+    labs(title = title_)
+  
+  print(p1)
+  
+  p2 <- ga_map_data_short_resid %>% st_drop_geometry() %>% 
+    dplyr::select(ID,`Mort. Obs`,`Mort. Pred`, y_minus) %>%  
+    ggplot(aes(x = `Mort. Pred`, y = `Mort. Obs`)) +
+    geom_point(alpha = 1 / 1.7) +
+    labs(title = title_)
+  
+  print(p2)
+
+}
+
+interaction_vals <- function(x) {
+  cat("mean(x):", mean(x))
+  cat("\nquantile(x, c(.025, .975)):", quantile(x, c(.025, .975)))
+  cat("\nexp(mean(x)):", exp(mean(x)))
+  cat("\nexp(quantile(x, c(.025, .975))):", exp(quantile(x, c(.025, .975))))
+}
+
 ```
 
 
@@ -297,6 +334,16 @@ print(model.spatial.full)
 post_prob(2, model.spatial.full, 0, loop = T)
 post_prob_lt(2, model.spatial.full, 0, loop = T)
 exp(model.spatial.full$summary.results[,1:3] )
+
+```
+
+### Full Expected Observed Plot
+
+```{r}
+
+exp_obs_plot(model.spatial.full, "Observed vs Predicted (Logistic, Full Model)")
+
+# Map 
 
 ```
 
@@ -432,6 +479,17 @@ exp(model.spatial.full$summary.results[,1:3] )
 
 ```
 
+### Full Expected Observed Plot
+
+```{r}
+
+exp_obs_plot(model.spatial.full, "Observed vs Predicted (Logistic, Vacancy Model)")
+
+# Map 
+
+```
+
+
 ```{r plot-for-vacancy-model}
 
 model_res_for_plot <- as.data.frame(exp(model.spatial.full$summary.results[,1:3]))
@@ -474,19 +532,25 @@ model_res_for_plot %>%
        title = "Odds Ratio Plot for Results of Analysis (Vacancy)")
   
 
-interact.effect.vacancy <- model.spatial.full$samples$beta[,2] + # Place Vector of Main Effect Here
+interact.effect.vacancy.sm <- model.spatial.full$samples$beta[,2] + # Place Vector of Main Effect Here
        model.spatial.full$samples$beta[,7] # Place Vector of Interaction Here
 
+interact.effect.vacancy.mm <- model.spatial.full$samples$beta[,2] + # Place Vector of Main Effect Here
+       model.spatial.full$samples$beta[,6] # Place Vector of Interaction Here
+
+interact.effect.vacancy.mi_non <- model.spatial.full$samples$beta[,2] + # Place Vector of Main Effect Here
+       model.spatial.full$samples$beta[,5] # Place Vector of Interaction Here
+
 ```
+
 
 ## Vacancy Effect with Interaction Exp
 
 ```{r}
-mean(interact.effect.vacancy)
-quantile(interact.effect.vacancy, c(.025, .975))
-exp(mean(interact.effect.vacancy))
-exp(quantile(interact.effect.vacancy, c(.025, .975)))
 
+interaction_vals(interact.effect.vacancy.sm)
+interaction_vals(interact.effect.vacancy.mm)
+interaction_vals(interact.effect.vacancy.mi_non)
 
 ```
 
