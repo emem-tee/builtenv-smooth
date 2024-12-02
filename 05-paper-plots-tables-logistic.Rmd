@@ -291,7 +291,7 @@ exp_obs_plot <- function(model, title_ = ""){
                  values_to = "Value") %>% 
     ggplot(aes(x = ID, y = Value, color = Statistic)) +
     geom_point(alpha = 1 / 1.7) +
-    labs(title = title_)
+    labs(title = glue::glue("Observed vs Predicted {title_}"))
   
   print(p1)
   
@@ -299,10 +299,19 @@ exp_obs_plot <- function(model, title_ = ""){
     dplyr::select(ID,`Mort. Obs`,`Mort. Pred`, y_minus) %>%  
     ggplot(aes(x = `Mort. Pred`, y = `Mort. Obs`)) +
     geom_point(alpha = 1 / 1.7) +
-    labs(title = title_)
+    labs(title = glue::glue("Observed vs Predicted {title_}"))
   
   print(p2)
 
+  p3 <- ga_map_data_short_resid %>% st_drop_geometry() %>% 
+    dplyr::select(ID,`Mort. Obs`,`Mort. Pred`, y_minus) %>% 
+    ggplot(aes(x = y_minus)) +
+    geom_histogram(bins = 25, color = "black") +
+    xlim(-3, 3) +
+    labs(title = glue::glue("Residuals Histogram {title_}"))
+  
+  print(p3)
+  
 }
 
 interaction_vals <- function(x) {
@@ -341,7 +350,7 @@ exp(model.spatial.full$summary.results[,1:3] )
 
 ```{r}
 
-exp_obs_plot(model.spatial.full, "Observed vs Predicted (Logistic, Full Model)")
+exp_obs_plot(model.spatial.full, "(Logistic, Full Model)")
 
 # Map 
 

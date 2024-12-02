@@ -291,7 +291,7 @@ exp_obs_plot <- function(model, title_ = ""){
                  values_to = "Value") %>% 
     ggplot(aes(x = ID, y = Value, color = Statistic)) +
     geom_point(alpha = 1 / 1.7) +
-    labs(title = title_)
+    labs(title = glue::glue("Observed vs Predicted {title_}"))
   
   print(p1)
   
@@ -299,10 +299,19 @@ exp_obs_plot <- function(model, title_ = ""){
     dplyr::select(ID,`Mort. Obs`,`Mort. Pred`, y_minus) %>%  
     ggplot(aes(x = `Mort. Pred`, y = `Mort. Obs`)) +
     geom_point(alpha = 1 / 1.7) +
-    labs(title = title_)
+    labs(title = glue::glue("Observed vs Predicted {title_}"))
   
   print(p2)
 
+  p3 <- ga_map_data_short_resid %>% st_drop_geometry() %>% 
+    dplyr::select(ID,`Mort. Obs`,`Mort. Pred`, y_minus) %>% 
+    ggplot(aes(x = y_minus)) +
+    geom_histogram(bins = 25, color = "black") +
+    xlim(-3, 3) +
+    labs(title = glue::glue("Residuals Histogram {title_}"))
+  
+  print(p3)
+  
 }
 
 interaction_vals <- function(x) {
@@ -495,6 +504,19 @@ interact.effect.vacancy.mi_non <- model.spatial.full$samples$beta[,2] + # Place 
 interaction_vals(interact.effect.vacancy.sm)
 interaction_vals(interact.effect.vacancy.mm)
 interaction_vals(interact.effect.vacancy.mi_non)
+
+tibble(
+  Name = factor( c("Small Metro", "Medium Metro", "Micro-Non Metro"),
+                 levels = c(c("Micro-Non Metro", "Small Metro", "Medium Metro"))), 
+  Est = c(exp(mean(interact.effect.vacancy.sm)), exp(mean(interact.effect.vacancy.mm)),exp(mean(interact.effect.vacancy.mi_non))), 
+  CI_lower = c(exp(quantile(interact.effect.vacancy.sm, .025)), exp(quantile(interact.effect.vacancy.mm, .025)), exp(quantile(interact.effect.vacancy.mi_non, .025))), 
+  CI_upper = c(exp(quantile(interact.effect.vacancy.sm, .975)),exp(quantile(interact.effect.vacancy.mm, .975)), exp(quantile(interact.effect.vacancy.mi_non, .975)))) %>% 
+  pivot_longer(cols = c(CI_lower, CI_upper), values_to = "CI") %>% 
+  ggplot(aes(x = Name, y = Est)) +
+  geom_point() +
+  geom_line(aes(y = CI, group = Name)) +
+  geom_hline(yintercept = 1) +
+  labs(x = NULL, y = "Risk Ratio of Mortality vs Metro")
 
 ```
 
